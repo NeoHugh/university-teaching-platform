@@ -1,86 +1,145 @@
-from flask import Flask, request, make_response, send_from_directory
+from flask import Flask, request, make_response, send_from_directory, url_for
 from Classes import Base, Engine, select, PUser, Teacher, Student, Course, Manage, Homework, HandInHomework, Reference, \
-    HandInHomework, session, TA, MyJSONEncoder
+    HandInHomework, session, TA, MyJSONEncoder, courseDescriptor2Name
 import json
 
-filePath = '../static'
+from flask import render_template
+
+filePath = './static'
 app = Flask(__name__)
 
 
+# app.debug = True
+
+
+@app.route('/', methods=['GET'])
+def welcome():
+    return render_template('hehe.html')
+
+
+# test , passed!
 @app.route('/loginValidness', methods=['POST'])
 def loginValidness():
-    uname = request.form['userid']
-    passwd = request.form['pswd']
+    userName = request.form['userName']
+    passWD = request.form['passWD']
     type = request.form['type']
-    stmt = select(PUser).where(PUser.userName == uname and PUser.passWD == passwd)
+    stmt = f'select * from puser where userName = "{userName}" and passWD = "{passWD}"'
     resultSet = session.execute(stmt)
-    match = 1 if len(resultSet) else 0
+    match = 1 if resultSet.rowcount else 0
     identity = 0
     if (match == 1):
         if type == 'stu':
-            stmt = select(Teacher.userName).where(Teacher.userName == uname)
-            identity = 1 if len(session.execute(stmt)) else 0
+            stmt = f'select * from student where userName = "{userName}"'
+            resultSet = session.execute(stmt)
+            identity = 1 if resultSet.rowcount else 0
         elif type == 'ins':
-            identity = 1 if len(session.execute(stmt)) else 0
+            stmt = f'select * from teacher where userName = "{userName}"'
+            resultSet = session.execute(stmt)
+            identity = 1 if resultSet.rowcount else 0
         elif type == 'ta':
-            stmt = select(TA.userName).where(TA.userName == uname)
-            identity = 1 if len(session.execute(stmt)) else 0
+            stmt = f'select * from ta where userName = "{userName}"'
+            resultSet = session.execute(stmt)
+            identity = 1 if resultSet.rowcount else 0
         else:
             pass
     return json.dumps({'match': match, 'identity': identity}, indent=2)
 
 
 '''
-after login
+after login :
 '''
 
 
-@app.route('/userInfo', methods=['GET'])
+# test , passed!
+@app.route('/userInfo', methods=['POST'])
 def userInfo():
-    uname = request.args.get('id')
-    type = request.args.get('type')
+    userName = request.form['userName']
+    type = request.form['type']
     if type == 'stu':
-        stmt = select(Student).where(Student.userName == uname)
-        res = session.execute(stmt)
-        stu = res.fetchone()
-        return json.dumps(stu, cls=MyJSONEncoder, indent=2)
+        res = session.query(Student).filter(Student.userName == userName).all()
+        stu = res[0]
+        return json.dumps(stu, cls=MyJSONEncoder, indent=2, ensure_ascii=False)
     elif type == 'ins':
-        stmt = select(Teacher).where(Teacher.userName == uname)
-        res = session.execute(stmt)
-        ins = res.fetchone()
-        return json.dumps(ins, cls=MyJSONEncoder, indent=2)
+        res = session.query(Teacher).filter(Teacher.userName == userName).all()
+        ins = res[0]
+        return json.dumps(ins, cls=MyJSONEncoder, indent=2, ensure_ascii=False)
     elif type == 'ta':
-        stmt = select(TA).where(TA.userName == uname)
-        res = session.execute(stmt)
-        ta = res.fetchone()
-        return json.dumps(ta, cls=MyJSONEncoder, indent=2)
+        res = session.query(TA).filter(TA.userName == userName).all()
+        ta = res[0]
+        return json.dumps(ta, cls=MyJSONEncoder, indent=2, ensure_ascii=False)
     else:
-        pass
+        return json.dumps({'state': 404})
 
 
-@app.route('/todolist', methods=['GET'])
+@app.route('/modifyInfo', methods=['POST'])
+def modifyInfo():
+    userName = request.form['userName']
+    nickName = request.form['nickName']
+    passWD = request.form['passWD']
+    try:
+        stmt = f'update puser set puser.nickName = "{nickName}" where puser.userName = "{userName}"'
+        # session.query(PUser).filter(PUser.userName == userName).update({'nickName':nickName})
+        session.execute(stmt)
+        session.commit()
+        if passWD != '':
+            stmt = f'update puser set puser.passWD = "{passWD}" where puser.userName = "{userName}"'
+            session.execute(stmt)
+            session.commit()
+        return json.dumps({'state': 200})
+    except:
+        return json.dumps({'state': 404})
+
+
+# test , passed!
+@app.route('/todolist', methods=['POST'])
 def todolist():
-    userName = request.args.get('userName')
-    type = request.args.get('type')
-    if type == 1:
+    userName = request.form['userName']
+    type = request.form['type']
+    if type == 'stu':
         # 学生只回传作业列表
-        stmt = f'select homeworkTitle,startTime,endTime,courseName from homework,participation where participation.studentUsername == {userName}'
+        stmt = f'select homeworkTitle,homework.startTime,homework.endTime,courseName from homework,participation,course where participation.studentUsername = "{userName}"'
         res = session.execute(stmt)
-        todols = [i for i in res]
-        return json.dumps(todols)
+        todols = [{'作业名称': list(i)[0], '开始时间': list(i)[1], '结束时间': list(i)[2], '课程名称': list(i)[3]} for i in res]
+        return json.dumps(todols, cls=MyJSONEncoder, indent=2, ensure_ascii=False)
 
-    elif type == 2:
-        stmt = f'select courseName, submitUserName, handInTime, homeworkTitle from handinhomework,manage,course where manage.userName == {userName} group by courseName'
+    elif type == 'ta':
+        stmt = f'SELECT submitUserName, handInTime, homeworkTitle,manage.courseDescriptor FROM handinhomework JOIN manage ON (handinhomework.courseDescriptor = manage.courseDescriptor)  WHERE manage.gradeHomework=1 and manage.userName = "{userName}"  and manage.courseDescriptor = (SELECT manage.courseDescriptor from manage NATURAL JOIN course WHERE manage.userName = "{userName}")'
+        # similar to ins but ta requires gradeHomework privilege to be set to 1
         res = session.execute(stmt)
-        todols = [i for i in res.fetchall()]
-        return json.dumps(todols)
-    elif type == 3:
-        stmt = f'select courseName, submitUserName, handInTime, homeworkTitle from handinhomework,manage,course where manage.userName == {userName} group by courseName'
+        todols = [{'提交者': list(i)[0], '提交时间': list(i)[1], '作业名称': list(i)[2], '课程名称': courseDescriptor2Name(list(i)[3])}
+                  for i in res]
+        return json.dumps(todols, cls=MyJSONEncoder, indent=2, ensure_ascii=False)
+
+    elif type == 'ins':
+        stmt = f'SELECT submitUserName, handInTime, homeworkTitle,manage.courseDescriptor FROM handinhomework JOIN manage ON (handinhomework.courseDescriptor = manage.courseDescriptor)  WHERE manage.userName = "{userName}"  and manage.courseDescriptor = (SELECT manage.courseDescriptor from manage NATURAL JOIN course WHERE manage.userName = "{userName}")'
         res = session.execute(stmt)
-        todols = [i for i in res.fetchall()]
-        return json.dumps(todols)
+        todols = [{'提交者': list(i)[0], '提交时间': list(i)[1], '作业名称': list(i)[2], '课程名称': courseDescriptor2Name(list(i)[3])}
+                  for i in res]
+        return json.dumps(todols, cls=MyJSONEncoder, indent=2, ensure_ascii=False)
     else:
-        return 404
+        return json.dumps({'state': 404})
+
+
+@app.route('/manageCourse', methods=['POST'])
+def manageCourse():
+    userName = request.form['userName']
+    stmt = f'SELECT courseDescriptor,courseName FROM course NATURAL JOIN manage WHERE manage.userName = "{userName}"'
+    res = session.execute(stmt)
+    course_list = [
+        {'课程标识符': i[0], '课程名称': i[1]} for i in
+        res]
+    return json.dumps(course_list, cls=MyJSONEncoder, indent=2, ensure_ascii=False)
+
+
+@app.route('/studyCourse', methods=['POST'])
+def studyCourse():
+    userName = request.form['userName']
+    stmt = f'SELECT courseDescriptor,courseName FROM course NATURAL JOIN participation WHERE participation.studentUserName = "{userName}"'
+    res = session.execute(stmt)
+    course_list = [
+        {'课程标识符': i[0], '课程名称': i[1]} for i in
+        res]
+    return json.dumps(course_list, cls=MyJSONEncoder, indent=2, ensure_ascii=False)
 
 
 @app.route('/fetchFile', methods=['GET'])
@@ -98,14 +157,15 @@ def fetchFile():
             fileName = res.fetchone()
         else:
             pass  # no file found
-        return send_from_directory(filePath, fileName, as_attachment=True) if fileName is not None else 404
+        return send_from_directory(filePath, fileName, as_attachment=True) if fileName is not None else json.dumps(
+            {'state': 404})
     elif type == 3:
         fileName = request.args.get('fileName')
-        return send_from_directory(filePath, fileName) if fileName is not None else 404
+        return send_from_directory(filePath, fileName) if fileName is not None else json.dumps({'state': 404})
     else:
         # unexpected type
         pass
-    return 404
+    return json.dumps({'state': 404})
 
 
 if __name__ == '__main__':
