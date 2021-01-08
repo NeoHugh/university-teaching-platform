@@ -15,6 +15,12 @@
     <br>
     <button id="get">get</button>
     <img id="imgtest">
+    <div class="container">
+        <form method="post"   enctype="multipart/form-data">
+            <input type="file" name="fileupload" id="fileUpload" >
+            <input type="submit" value="upload" id="upload">
+        </form>
+    </div>
 </head>
 <script src="../static/jquery-3.5.1.js"></script>
 <script src="../static/jquery-3.5.1.min.js"></script>
@@ -28,15 +34,51 @@
             $.post({
                 //给哪个页面发送网络请求  url取  域名后面的所有东西
                 // {#'url': '/loginValidness',#}
-                'url': '/modifyInfo',
+                'url': '/uploadfile',
                 //data是发送过去的数据s
                 'data': {
-                    'userName': $('#userName').val(),
-                    'passWD': 'caobao123',
-                    'type': 'ins',
-                    'nickName': '灿宝宝'
-
+                    'type': 'stu',
+                    'uname': 'LIUxm',
+                    'handintime': '2020-10-30 13:26:00',
+                    'hwname': 'lxm操作系统报告',
+                    'title': '自学实现一个编译器',
+                    'courseDes': '589b51e8b8790cb67fb0245edb9b03fdcce0c81265e46d945ddf743eb22003d7'
                 },
+                //如果网络请求发送成功，就会执行success里面的函数
+                //请求成功 是状态码等于200就会执行success里面的函数
+                //否则执行fail里面的函数
+                'success': function (data) {
+                    //data是服务器发送过来的数据
+                    //如果服务器发送过来的是json数据，那么JS底层会将json进行解析
+                    //比如 服务器发送过来的是JSON类型的字典，那么JS底层会将JSOn数据转换成一个对象
+                    console.log(data)
+                },
+                //如果网络请求发送失败，就会执行fail里面的函数
+                'fail':
+                    function (error) {
+                        console.log(error)
+                    }
+            })
+        })
+
+    });
+
+    $(function () {
+        //点击按钮发送数据
+        $("#upload").click(function (event) {
+            //关闭表单里面的按钮默认行为
+            event.preventDefault();
+            var form= new FormData();
+            form.append('type','stu')
+            form.append('file',$('#fileUpload')[0].files[0])
+            $.post({
+                //给哪个页面发送网络请求  url取  域名后面的所有东西
+                // {#'url': '/loginValidness',#}
+                'url': '/uploadfile',
+                //data是发送过去的数据s
+                'data': form,
+                "contentType": false,
+                "processData": false,
                 //如果网络请求发送成功，就会执行success里面的函数
                 //请求成功 是状态码等于200就会执行success里面的函数
                 //否则执行fail里面的函数
