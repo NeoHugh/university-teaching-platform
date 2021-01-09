@@ -69,8 +69,9 @@
             //关闭表单里面的按钮默认行为
             event.preventDefault();
             var form= new FormData();
-            form.append('type','stu')
+            form.append('type','user')
             form.append('file',$('#fileUpload')[0].files[0])
+            form.append('userName','LIUxm')
             $.post({
                 //给哪个页面发送网络请求  url取  域名后面的所有东西
                 // {#'url': '/loginValidness',#}

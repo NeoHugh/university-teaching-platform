@@ -229,7 +229,7 @@ def hotCourse():
     return json.dumps(hotCourse, cls=MyJSONEncoder, indent=2, ensure_ascii=False)
 
 
-# 获取课程详情 tested pass!
+# 获取课程详情 tested, pass!
 @app.route('/courseInfo', methods=['POST'])
 def courseInfo():
     courseDes = request.form['courseDes']
@@ -262,57 +262,64 @@ def uploadfile():
     else:
         saveFlag = False
 
-        # 课件资料
+        # 课件资料 tested, pass!
     if type == 'ins' or type == 'ta':
         refname = request.form['refname']
         userName = request.form['userName']
         courseDescriptor = request.form['courseDescriptor']
         s = hashlib.sha256()
-        s.update(refname + userName + courseDescriptor)
+        str = refname + userName + courseDescriptor
+        s.update(str.encode("utf8"))
         shafile = s.hexdigest()
         datetime = request.form['datetime']
         downloadable = request.form['downloadable']
-        stmt = f'insert into Reference values({refname}, {shafile}, {datetime}, {downloadable}, {courseDescriptor})'
+        stmt = f'insert into Reference values("{refname}", "{shafile}", "{datetime}", "{downloadable}", "{courseDescriptor}")'
         res = session.execute(stmt)
+        session.commit()
         if res and saveFlag:
             return json.dumps({'state': 200}, indent=2, ensure_ascii=False)
         else:
             return json.dumps({'state': 404}, indent=2, ensure_ascii=False)
-    # 学生作业
+    # 学生作业 tested, pass!
     elif type == 'stu':
         userName = request.form['userName']
+        gradeuname = request.form['gradeuname']
         handintime = request.form['handintime']
         hwname = request.form['hwname']
         title = request.form['title']
         courseDescriptor = request.form['courseDescriptor']
         s = hashlib.sha256()
-        s.update(hwname + userName + title + courseDescriptor)
+        str = (hwname + userName + title + courseDescriptor)
+        s.update(str.encode("utf8"))
         shafile = s.hexdigest()
-        # 批改人和作业得分先设为0，批改后直接update上去
-        stmt = f'insert into Reference values("{userName}", "N", 0, "{handintime}", "{hwname}", "{shafile}", "{courseDescriptor}", "{title}")'
+        # 作业得分先设为0，批改后直接update上去
+        stmt = f'insert into handinhomework values("{userName}", "{gradeuname}", 0, "{handintime}", "{hwname}", "{shafile}", "{courseDescriptor}", "{title}")'
         res = session.execute(stmt)
+        session.commit()
         if res and saveFlag:
             return json.dumps({'state': 200}, indent=2, ensure_ascii=False)
         else:
             return json.dumps({'state': 404}, indent=2, ensure_ascii=False)
 
-    # 课程头像
+    # 课程头像 tested, pass!
     elif type == 'course':
         courseDescriptor = request.form['courseDescriptor']
-        image = f.filename.split('.')[-1]
-        stmt = f'update Course set Image = {image} where courseDescriptor = "{courseDescriptor}"'
+        image = filename.split('.')[-1]
+        stmt = f'update course set Image = "{image}" where course.courseDescriptor = "{courseDescriptor}"'
         res = session.execute(stmt)
+        session.commit()
         if res and saveFlag:
             return json.dumps({'state': 200}, indent=2, ensure_ascii=False)
         else:
             return json.dumps({'state': 404}, indent=2, ensure_ascii=False)
 
-    # 用户头像
+    # 用户头像 tested, pass!
     elif type == 'user':
         userName = request.form['userName']
-        ptrait = f.filename.split('.')[-1]
-        stmt = f'update puser set portrait = {ptrait} where userName = "{userName}"'
+        ptrait = filename.split('.')[-1]
+        stmt = f'update puser set portrait = "{ptrait}" where userName = "{userName}"'
         res = session.execute(stmt)
+        session.commit()
         if res and saveFlag:
             return json.dumps({'state': 200})
         else:
@@ -320,7 +327,7 @@ def uploadfile():
     return json.dumps({'state': 404}, indent=2, ensure_ascii=False)
 
 
-# 老师布置作业 tested pass!
+# 老师布置作业 tested, pass!
 @app.route('/assign', methods=['POST'])
 def assign():
     courseDes = request.form['courseDes']
@@ -338,7 +345,7 @@ def assign():
         return json.dumps({'state': 404})
 
 
-# 老师批改作业 tested pass!
+# 老师批改作业 tested, pass!
 @app.route('/rating', methods=['POST'])
 def rating():
     uname = request.form['uname']
