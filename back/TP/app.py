@@ -76,6 +76,13 @@ def userInfo():
         return json.dumps({'state': 404}, indent=2, ensure_ascii=False)
 
 
+@app.route('userPortrait', methods=['GET'])
+def userPortrait():
+    userName = request.args.get('userName')
+    url = userName + '.' + session.query(PUser.portrait).filter(PUser.userName == userName).all()[0][0]
+    return json.dumps({'url': url})
+
+
 # 修改某个用户个人信息
 @app.route('/modifyInfo', methods=['POST'])
 def modifyInfo():
